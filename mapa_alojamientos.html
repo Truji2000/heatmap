@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Alojamientos Turísticos</title>
+
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.21.0/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.21.0/mapbox-gl.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0e0f13;
+      --surface: #16181f;
+      --border: rgba(255,255,255,0.07);
+      --text: #f0f0f0;
+      --muted: #7a7d8a;
+      --accent: #e8a045;
+      --accent2: #5c8fff;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: 'Sora', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      z-index: 10;
+      flex-shrink: 0;
+    }
+
+    header .logo {
+      width: 36px;
+      height: 36px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    header .logo svg { width: 20px; height: 20px; fill: #0e0f13; }
+
+    header h1 {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    header p {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 1px;
+    }
+
+    /* ── Legend ── */
+    .legend {
+      position: absolute;
+      bottom: 36px;
+      left: 16px;
+      z-index: 5;
+      background: rgba(22, 24, 31, 0.92);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 200px;
+    }
+
+    .legend-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 2px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .legend-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .legend-icon.hotel    { background: rgba(92, 143, 255, 0.2); color: var(--accent2); }
+    .legend-icon.apt      { background: rgba(232, 160, 69, 0.2); color: var(--accent); }
+    .legend-icon.vivienda { background: rgba(72, 199, 142, 0.2); color: #48c78e; }
+
+    /* ── Map ── */
+    #map {
+      flex: 1;
+      width: 100%;
+      position: relative;
+    }
+
+    /* ── Mapbox popup overrides ── */
+    .mapboxgl-popup-content {
+      background: rgba(22, 24, 31, 0.97) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: var(--radius) !important;
+      padding: 0 !important;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+      font-family: 'Sora', sans-serif !important;
+      color: var(--text) !important;
+      min-width: 240px;
+    }
+
+    .mapboxgl-popup-tip {
+      display: none !important;
+    }
+
+    .mapboxgl-popup-close-button {
+      color: var(--muted) !important;
+      font-size: 18px !important;
+      padding: 8px 10px !important;
+      line-height: 1 !important;
+      background: none !important;
+      border: none !important;
+      transition: color 0.2s;
+    }
+
+    .mapboxgl-popup-close-button:hover {
+      color: var(--text) !important;
+    }
+
+    /* ── Hover popup ── */
+    .popup-hover {
+      padding: 10px 14px;
+    }
+
+    .popup-hover .name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+
+    .popup-hover .tag {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    .tag.hotel    { background: rgba(92,143,255,0.15); color: var(--accent2); }
+    .tag.apartamento { background: rgba(232,160,69,0.15); color: var(--accent); }
+    .tag.vivienda { background: rgba(72,199,142,0.15); color: #48c78e; }
+    .tag.default  { background: rgba(255,255,255,0.08); color: var(--muted); }
+
+    /* ── Click popup ── */
+    .popup-click {
+      overflow: hidden;
+      border-radius: var(--radius);
+    }
+
+    .popup-click .popup-header {
+      padding: 14px 36px 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .popup-click .popup-header .name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.3;
+      margin-bottom: 6px;
+    }
+
+    .popup-click .popup-body {
+      padding: 12px 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .popup-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .popup-row .label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    .popup-row .value {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      text-align: right;
+      max-width: 160px;
+    }
+
+    .popup-row .value.rooms {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .popup-divider {
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── Mapbox controls dark ── */
+    .mapboxgl-ctrl-group {
+      background: var(--surface) !important;
+      border: 1px solid var(--border) !important;
+    }
+
+    .mapboxgl-ctrl-group button {
+      background-color: transparent !important;
+    }
+
+    .mapboxgl-ctrl-group button span {
+      filter: invert(1);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/>
+      </svg>
+    </div>
+    <div>
+      <h1>Alojamientos Turísticos</h1>
+      <p>Pasa el cursor para ver el nombre · Haz clic para más detalles</p>
+    </div>
+  </header>
+
+  <div id="map">
+    <div class="legend">
+      <div class="legend-title">Tipo de alojamiento</div>
+      <div class="legend-item">
+        <div class="legend-icon hotel">🏨</div>
+        <span>Establecimiento Hotelero</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-icon apt">🏢</div>
+        <span>Apartamento Turístico</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-icon vivienda">🏠</div>
+        <span>Vivienda de Uso Turístico</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ─── IMPORTANTE: Reemplaza con tu token de Mapbox ─────────────────────────
+    mapboxgl.accessToken = 'pk.eyJ1IjoidHJ1amkyMDAwIiwiYSI6ImNtb2d6cGZxdzAxaGcyc3NiNHU2eDg0czkifQ.Y3k8roSPvhTLLkOW7FIfvw';
+    // ──────────────────────────────────────────────────────────────────────────
+
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/truji2000/cmor3azvi003201skb3bsbdfv',
+      center: [-4.783103213350017, 37.88076702068237],
+      zoom: 13.0253591824201,
+      bearing: 0,
+      pitch: 0
+    });
+
+    // Controles de navegación
+    map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+    map.addControl(new mapboxgl.ScaleControl(), 'bottom-right');
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+    function getTagClass(actividad) {
+      if (!actividad) return 'default';
+      if (actividad.includes('Hotelero')) return 'hotel';
+      if (actividad.includes('Apartamento')) return 'apartamento';
+      if (actividad.includes('turística') || actividad.includes('turístico')) return 'vivienda';
+      return 'default';
+    }
+
+    function fixCoords(coords, lngLat) {
+      const c = coords.slice();
+      while (Math.abs(lngLat.lng - c[0]) > 180) {
+        c[0] += lngLat.lng > c[0] ? 360 : -360;
+      }
+      return c;
+    }
+
+    // ── Popup hover ────────────────────────────────────────────────────────────
+    const hoverPopup = new mapboxgl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      offset: 18
+    });
+
+    map.on('mouseenter', 'Alojamientos', (e) => {
+      map.getCanvas().style.cursor = 'pointer';
+
+      const props = e.features[0].properties;
+      const coords = fixCoords(e.features[0].geometry.coordinates, e.lngLat);
+      const tagClass = getTagClass(props.ACTIVIDAD);
+
+      hoverPopup
+        .setLngLat(coords)
+        .setHTML(`
+          <div class="popup-hover">
+            <div class="name">${props.NOMBRE ?? '—'}</div>
+            <span class="tag ${tagClass}">${props.ACTIVIDAD ?? 'Sin clasificar'}</span>
+          </div>
+        `)
+        .addTo(map);
+    });
+
+    map.on('mouseleave', 'Alojamientos', () => {
+      map.getCanvas().style.cursor = '';
+      hoverPopup.remove();
+    });
+
+    // ── Popup click con tabla ──────────────────────────────────────────────────
+    const clickPopup = new mapboxgl.Popup({
+      closeButton: true,
+      closeOnClick: true,
+      offset: 18,
+      maxWidth: '300px'
+    });
+
+    map.on('click', 'Alojamientos', (e) => {
+      const props = e.features[0].properties;
+      const coords = fixCoords(e.features[0].geometry.coordinates, e.lngLat);
+      const tagClass = getTagClass(props.ACTIVIDAD);
+
+      clickPopup
+        .setLngLat(coords)
+        .setHTML(`
+          <div class="popup-click">
+            <div class="popup-header">
+              <div class="name">${props.NOMBRE ?? '—'}</div>
+              <span class="tag ${tagClass}">${props.ACTIVIDAD ?? 'Sin clasificar'}</span>
+            </div>
+            <div class="popup-body">
+              <div class="popup-row">
+                <span class="label">Actividad</span>
+                <span class="value">${props.ACTIVIDAD ?? '—'}</span>
+              </div>
+              <div class="popup-divider"></div>
+              <div class="popup-row">
+                <span class="label">Habitaciones</span>
+                <span class="value rooms">${props.TOTAL_HABITACIONES ?? '—'}</span>
+              </div>
+            </div>
+          </div>
+        `)
+        .addTo(map);
+    });
+  </script>
+</body>
+</html>
